@@ -485,7 +485,413 @@ if st.button(
 # --------------------------------------------------
 # MOTIVATION
 # --------------------------------------------------
+# --------------------------------------------------
+# STATISTIK
+# --------------------------------------------------
 
+from datetime import timedelta
+
+st.divider()
+st.subheader("📊 Mein Fortschritt")
+
+
+# Alle gespeicherten Tage laden
+def load_all_days():
+    response = (
+        supabase
+        .table("daily_tracker")
+        .select("*")
+        .order("date")
+        .execute()
+    )
+    return response.data or []
+
+
+all_days = load_all_days()
+
+
+# --------------------------------------------------
+# TAGES-SCORE BERECHNEN
+# --------------------------------------------------
+
+habit_fields = [
+    "calorie_deficit",
+    "fixed_meals",
+    "no_snacks",
+    "no_calorie_drinks",
+    "movement_30",
+    "protein_goal",
+    "sleep_goal",
+    "reading_30",
+    "trading_30"
+]
+
+
+def calculate_score(day):
+
+    completed = sum(
+        bool(day.get(field, False))
+        for field in habit_fields
+    )
+
+    total = len(habit_fields)
+
+    # Training nur berücksichtigen,
+    # wenn tatsächlich Training ausgewählt wurde
+    training_day = day.get("training_day", "Ruhetag")
+
+    if training_day != "Ruhetag":
+
+        exercise_fields = [
+            "exercise_1",
+            "exercise_2",
+            "exercise_3",
+            "exercise_4",
+            "exercise_5",
+            "exercise_6",
+            "exercise_7"
+        ]
+
+        completed += sum(
+            bool(day.get(field, False))
+            for field in exercise_fields
+        )
+
+        total += 7
+
+    return completed / total if total else 0
+
+
+# --------------------------------------------------
+# ZEITRÄUME
+# --------------------------------------------------
+
+today = date.today()
+
+start_week = today - timedelta(days=today.weekday())
+
+start_month = today.replace(day=1)
+
+start_year = today.replace(
+    month=1,
+    day=1
+)
+
+
+def days_since(start_date):
+
+    return [
+        day for day in all_days
+        if date.fromisoformat(day["date"]) >= start_date
+        and date.fromisoformat(day["date"]) <= today
+    ]
+
+
+week_days = days_since(start_week)
+month_days = days_since(start_month)
+year_days = days_since(start_year)
+
+
+def average_score(days):
+
+    if not days:
+        return 0
+
+    scores = [
+        calculate_score(day)
+        for day in days
+    ]
+
+    return sum(scores) / len(scores)
+
+
+week_score = average_score(week_days)
+month_score = average_score(month_days)
+year_score = average_score(year_days)
+
+
+# --------------------------------------------------
+# HAUPT-KENNZAHLEN
+# --------------------------------------------------
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    st.metric(
+        "📅 Diese Woche",
+        f"{week_score:.0%}"
+    )
+
+with c2:
+    st.metric(
+        "🗓️ Dieser Monat",
+        f"{month_score:.0%}"
+    )
+
+with c3:
+    st.metric(
+        "🏆 Dieses Jahr",
+        f"{year_score:.0%}"
+    )
+
+
+# --------------------------------------------------
+# STREAK
+# --------------------------------------------------
+
+def calculate_streak(days, minimum_score=0.80):
+
+    if not days:
+        return 0, 0
+
+    sorted_days = sorted(
+        days,
+        key=lambda x: x["date"]
+    )
+
+    longest = 0
+    running = 0
+
+    streak_by_date = {}
+
+    for day in sorted_days:
+
+        d = date.fromisoformat(day["date"])
+        score = calculate_score(day)
+
+        streak_by_date[d] = score >= minimum_score
+
+
+    # längste Streak
+
+    previous_date = None
+
+    for d in sorted(streak_by_date):
+
+        successful = streak_by_date[d]
+
+        if (
+            successful
+            and (
+                previous_date is None
+                or d == previous_date + timedelta(days=1)
+            )
+        ):
+
+            running += 1
+
+        elif successful:
+
+            running = 1
+
+        else:
+
+            running = 0
+
+        longest = max(
+            longest,
+            running
+        )
+
+        previous_date = d
+
+
+    # aktuelle Streak
+
+    current = 0
+
+    check_date = today
+
+    while streak_by_date.get(
+        check_date,
+        False
+    ):
+
+        current += 1
+        check_date -= timedelta(days=1)
+
+
+    return current, longest
+
+
+current_streak, longest_streak = calculate_streak(
+    all_days
+)
+
+
+st.markdown("### 🔥 Konstanz")
+
+c1, c2 = st.columns(2)
+
+with c1:
+
+    st.metric(
+        "Aktuelle 80%-Streak",
+        f"{current_streak} Tage"
+    )
+
+with c2:
+
+    st.metric(
+        "Längste 80%-Streak",
+        f"{longest_streak} Tage"
+    )
+
+
+# --------------------------------------------------
+# TRAININGSSTATISTIK
+# --------------------------------------------------
+
+def count_training(days):
+
+    return sum(
+        1
+        for day in days
+        if day.get(
+            "training_day",
+            "Ruhetag"
+        ) != "Ruhetag"
+    )
+
+
+training_week = count_training(week_days)
+training_month = count_training(month_days)
+training_year = count_training(year_days)
+
+
+st.markdown("### 💪 Training")
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+
+    st.metric(
+        "Diese Woche",
+        training_week
+    )
+
+with c2:
+
+    st.metric(
+        "Dieser Monat",
+        training_month
+    )
+
+with c3:
+
+    st.metric(
+        "Dieses Jahr",
+        training_year
+    )
+
+
+# --------------------------------------------------
+# GEWOHNHEITEN
+# --------------------------------------------------
+
+st.markdown("### 🎯 Meine Gewohnheiten")
+
+
+habit_labels = {
+
+    "calorie_deficit":
+        "🔥 Kaloriendefizit",
+
+    "fixed_meals":
+        "🍽️ Feste Mahlzeiten",
+
+    "no_snacks":
+        "🚫 Keine unnötigen Snacks",
+
+    "no_calorie_drinks":
+        "🥤 Keine Kalorien getrunken",
+
+    "movement_30":
+        "🚶 30 Min. Bewegung",
+
+    "protein_goal":
+        "🥩 Proteinziel",
+
+    "sleep_goal":
+        "😴 Schlafziel",
+
+    "reading_30":
+        "📚 30 Min. Lesen",
+
+    "trading_30":
+        "📈 30 Min. Trading"
+}
+
+
+for field, label in habit_labels.items():
+
+    completed = sum(
+        bool(day.get(field, False))
+        for day in month_days
+    )
+
+    total = len(month_days)
+
+    percentage = (
+        completed / total
+        if total
+        else 0
+    )
+
+    col1, col2 = st.columns(
+        [4, 1]
+    )
+
+    with col1:
+
+        st.write(label)
+
+        st.progress(
+            percentage
+        )
+
+    with col2:
+
+        st.write(
+            f"**{completed}/{total}**"
+        )
+
+
+# --------------------------------------------------
+# MONATSFAZIT
+# --------------------------------------------------
+
+st.markdown("### 🧠 Monatsfazit")
+
+if month_score >= 0.90:
+
+    st.success(
+        "🏆 Überragende Konstanz – diesen Rhythmus beibehalten."
+    )
+
+elif month_score >= 0.80:
+
+    st.success(
+        "🔥 Sehr starker Monat. Du bist klar auf Kurs."
+    )
+
+elif month_score >= 0.70:
+
+    st.info(
+        "💪 Solider Monat. Kleine Verbesserungen bringen dich Richtung 80 %."
+    )
+
+elif month_score >= 0.50:
+
+    st.info(
+        "🎯 Gute Basis – konzentriere dich auf die Gewohnheiten mit der niedrigsten Quote."
+    )
+
+else:
+
+    st.info(
+        "🌱 Jeder gespeicherte Tag zählt. Ziel ist zunächst Konstanz, nicht Perfektion."
+    )
 st.divider()
 
 if progress == 1:
