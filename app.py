@@ -1,3 +1,4 @@
+
 import streamlit as st
 from datetime import date, datetime, timedelta, timezone
 from supabase import create_client, Client
@@ -7,7 +8,7 @@ from supabase import create_client, Client
 # --------------------------------------------------
 
 st.set_page_config(
-    page_title="Mission 365",
+    page_title="Stani Performance",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -33,30 +34,38 @@ st.markdown(
     """
     <style>
     :root {
-        --bg: #08111f;
-        --card: rgba(17, 29, 48, 0.86);
-        --card-2: rgba(22, 37, 61, 0.82);
-        --line: rgba(148, 163, 184, 0.16);
+        --bg: #07101d;
+        --bg-soft: #0a1526;
+        --card: rgba(15, 28, 47, 0.88);
+        --card-strong: rgba(18, 34, 57, 0.96);
+        --line: rgba(148, 163, 184, 0.14);
+        --line-strong: rgba(148, 163, 184, 0.22);
         --text: #f8fafc;
         --muted: #94a3b8;
-        --green: #22c55e;
-        --yellow: #f59e0b;
-        --red: #ef4444;
+        --green: #34d399;
+        --green-soft: rgba(52, 211, 153, 0.14);
+        --yellow: #fbbf24;
+        --red: #fb7185;
         --blue: #38bdf8;
         --purple: #a78bfa;
     }
 
     .stApp {
         background:
-            radial-gradient(circle at 15% 0%, rgba(56, 189, 248, 0.10), transparent 26rem),
-            radial-gradient(circle at 100% 10%, rgba(167, 139, 250, 0.10), transparent 24rem),
-            var(--bg);
+            radial-gradient(circle at 12% -10%, rgba(56, 189, 248, 0.13), transparent 28rem),
+            radial-gradient(circle at 96% 4%, rgba(167, 139, 250, 0.11), transparent 26rem),
+            linear-gradient(180deg, #081322 0%, var(--bg) 45%, #060d18 100%);
         color: var(--text);
+    }
+
+    [data-testid="stHeader"] {
+        background: rgba(7, 16, 29, 0.70);
+        backdrop-filter: blur(14px);
     }
 
     .block-container {
         max-width: 1180px;
-        padding-top: 1.5rem;
+        padding-top: 1.35rem;
         padding-bottom: 4rem;
     }
 
@@ -64,197 +73,418 @@ st.markdown(
         color: var(--text);
     }
 
-    div[data-testid="stWidgetLabel"] p {
-        color: #cbd5e1 !important;
-        font-weight: 600;
-    }
-
+    /* Header */
     .mission-header {
-        padding: 0.2rem 0 1rem 0;
+        padding: 0.15rem 0 1.05rem 0;
     }
 
     .mission-kicker {
-        color: var(--blue);
-        font-size: 0.82rem;
-        font-weight: 800;
-        letter-spacing: 0.16em;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: #bae6fd;
+        background: rgba(56, 189, 248, 0.10);
+        border: 1px solid rgba(56, 189, 248, 0.18);
+        border-radius: 999px;
+        padding: 0.34rem 0.68rem;
+        font-size: 0.72rem;
+        font-weight: 850;
+        letter-spacing: 0.11em;
         text-transform: uppercase;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.75rem;
     }
 
     .mission-title {
-        font-size: clamp(2.1rem, 6vw, 4rem);
-        line-height: 1;
-        font-weight: 900;
-        letter-spacing: -0.04em;
+        font-size: clamp(2.2rem, 6vw, 4.25rem);
+        line-height: 0.98;
+        font-weight: 950;
+        letter-spacing: -0.055em;
         margin: 0;
     }
 
     .mission-subtitle {
         color: var(--muted);
         font-size: 1rem;
-        margin-top: 0.55rem;
+        margin-top: 0.62rem;
     }
 
+    /* Hero */
     .hero-card {
-        background: linear-gradient(135deg, rgba(18, 35, 58, 0.96), rgba(11, 23, 40, 0.96));
-        border: 1px solid var(--line);
-        border-radius: 24px;
-        padding: 1.3rem 1.4rem;
-        margin: 0.25rem 0 1.1rem 0;
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 88% 18%, rgba(56, 189, 248, 0.16), transparent 14rem),
+            linear-gradient(135deg, rgba(19, 38, 64, 0.98), rgba(9, 21, 37, 0.98));
+        border: 1px solid var(--line-strong);
+        border-radius: 28px;
+        padding: 1.35rem 1.45rem;
+        margin: 0.35rem 0 1.15rem 0;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.26);
+    }
+
+    .hero-card:before {
+        content: "";
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: rgba(167, 139, 250, 0.10);
+        filter: blur(12px);
+        right: -90px;
+        bottom: -120px;
     }
 
     .hero-row {
+        position: relative;
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: space-between;
-        gap: 1rem;
+        gap: 1.4rem;
         flex-wrap: wrap;
+        z-index: 1;
+    }
+
+    .hero-copy {
+        flex: 1 1 360px;
     }
 
     .hero-label {
-        color: var(--muted);
-        font-size: 0.78rem;
-        font-weight: 800;
-        letter-spacing: 0.11em;
+        color: #93c5fd;
+        font-size: 0.76rem;
+        font-weight: 850;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
     }
 
-    .hero-score {
-        font-size: clamp(2.8rem, 8vw, 5.5rem);
-        font-weight: 900;
-        line-height: 0.95;
-        letter-spacing: -0.06em;
-        margin-top: 0.3rem;
-    }
-
-    .hero-score span {
-        color: var(--muted);
-        font-size: 0.32em;
-        font-weight: 700;
-        letter-spacing: 0;
-    }
-
     .hero-status {
-        color: #dbeafe;
-        font-size: 1rem;
-        font-weight: 700;
-        text-align: right;
+        font-size: clamp(1.25rem, 3vw, 1.7rem);
+        font-weight: 900;
+        margin-top: 0.42rem;
+        letter-spacing: -0.02em;
     }
 
     .hero-meta {
         color: var(--muted);
-        margin-top: 0.3rem;
+        margin-top: 0.45rem;
         font-size: 0.9rem;
-        text-align: right;
     }
 
-    .section-title {
-        font-size: 1.1rem;
+    .hero-chips {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.85rem;
+    }
+
+    .hero-chip {
+        color: #dbeafe;
+        background: rgba(148, 163, 184, 0.10);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 999px;
+        padding: 0.34rem 0.64rem;
+        font-size: 0.78rem;
+        font-weight: 750;
+    }
+
+    .score-ring {
+        --score: 0;
+        width: 132px;
+        height: 132px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        flex: 0 0 132px;
+        background:
+            radial-gradient(circle at center, #0b1829 57%, transparent 58%),
+            conic-gradient(var(--green) calc(var(--score) * 1%), rgba(148, 163, 184, 0.13) 0);
+        box-shadow:
+            inset 0 0 0 1px rgba(148, 163, 184, 0.10),
+            0 18px 34px rgba(0, 0, 0, 0.24);
+    }
+
+    .score-value {
+        text-align: center;
+        font-size: 2.15rem;
+        line-height: 0.95;
+        font-weight: 950;
+        letter-spacing: -0.055em;
+    }
+
+    .score-value small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.68rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-top: 0.3rem;
         font-weight: 800;
-        margin: 0.25rem 0 0.65rem 0;
     }
 
+    /* Abschnittsüberschriften */
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 900;
+        margin: 0.35rem 0 0.72rem 0;
+        letter-spacing: -0.01em;
+    }
+
+    .section-note {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-top: -0.45rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Tabs als moderne Pillen */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.45rem;
+        background: rgba(15, 28, 47, 0.60);
+        border: 1px solid var(--line);
+        padding: 0.35rem;
+        border-radius: 16px;
+        margin-bottom: 0.9rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 2.65rem;
+        padding: 0 1rem;
+        border-radius: 12px;
+        color: var(--muted);
+        font-weight: 800;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(56, 189, 248, 0.11);
+        color: #e0f2fe !important;
+    }
+
+    .stTabs [data-baseweb="tab-highlight"] {
+        display: none;
+    }
+
+    /* Inputs dunkel */
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="select"] > div {
+        background: rgba(15, 28, 47, 0.92) !important;
+        border-color: var(--line-strong) !important;
+        border-radius: 14px !important;
+    }
+
+    div[data-baseweb="input"] input,
+    div[data-baseweb="select"] span {
+        color: var(--text) !important;
+    }
+
+    div[data-testid="stWidgetLabel"] p {
+        color: #cbd5e1 !important;
+        font-weight: 750;
+    }
+
+    /* Checkboxen als Karten */
+    div[data-testid="stCheckbox"] {
+        background: rgba(15, 28, 47, 0.60);
+        border: 1px solid rgba(148, 163, 184, 0.10);
+        border-radius: 14px;
+        padding: 0.48rem 0.62rem;
+        margin-bottom: 0.46rem;
+        transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    div[data-testid="stCheckbox"]:hover {
+        transform: translateY(-1px);
+        background: rgba(18, 34, 57, 0.88);
+        border-color: rgba(56, 189, 248, 0.24);
+    }
+
+    /* Container / Metrics */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-color: var(--line) !important;
+        background: linear-gradient(180deg, rgba(15, 28, 47, 0.72), rgba(9, 20, 35, 0.62));
+        border-radius: 20px !important;
+    }
+
+    div[data-testid="stMetric"] {
+        background: linear-gradient(180deg, rgba(18, 34, 57, 0.80), rgba(12, 24, 41, 0.80));
+        border: 1px solid var(--line) !important;
+        border-radius: 18px;
+        padding: 0.55rem 0.7rem;
+        min-height: 104px;
+    }
+
+    div[data-testid="stMetricLabel"] {
+        color: var(--muted) !important;
+        font-weight: 750;
+    }
+
+    div[data-testid="stMetricValue"] {
+        font-weight: 950;
+        letter-spacing: -0.045em;
+    }
+
+    /* Button */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, #0ea5e9, #22c55e);
+        border: 0;
+        border-radius: 15px;
+        font-weight: 900;
+        min-height: 3.1rem;
+        box-shadow: 0 12px 28px rgba(14, 165, 233, 0.16);
+    }
+
+    div.stButton > button[kind="primary"]:hover {
+        filter: brightness(1.06);
+        transform: translateY(-1px);
+    }
+
+    /* Progress */
+    div[data-testid="stProgress"] > div > div {
+        background: rgba(148, 163, 184, 0.12);
+        border-radius: 999px;
+    }
+
+    div[data-testid="stProgress"] > div > div > div > div {
+        background: linear-gradient(90deg, #38bdf8, #34d399);
+        border-radius: 999px;
+    }
+
+    /* Wochenkalender */
     .week-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
-        gap: 0.7rem;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 0.62rem;
         margin-top: 0.7rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.95rem;
     }
 
     .day-card {
+        position: relative;
+        overflow: hidden;
         border-radius: 18px;
         border: 1px solid var(--line);
-        padding: 0.9rem;
-        min-height: 112px;
-        background: var(--card);
+        padding: 0.85rem;
+        min-height: 126px;
+        background: rgba(15, 28, 47, 0.72);
+    }
+
+    .day-card:after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 3px;
+        background: rgba(148, 163, 184, 0.15);
     }
 
     .day-good {
-        background: linear-gradient(145deg, rgba(34, 197, 94, 0.18), rgba(17, 29, 48, 0.92));
-        border-color: rgba(34, 197, 94, 0.35);
+        background: linear-gradient(145deg, rgba(52, 211, 153, 0.16), rgba(15, 28, 47, 0.88));
+        border-color: rgba(52, 211, 153, 0.28);
     }
+
+    .day-good:after { background: var(--green); }
 
     .day-mid {
-        background: linear-gradient(145deg, rgba(245, 158, 11, 0.16), rgba(17, 29, 48, 0.92));
-        border-color: rgba(245, 158, 11, 0.35);
+        background: linear-gradient(145deg, rgba(251, 191, 36, 0.14), rgba(15, 28, 47, 0.88));
+        border-color: rgba(251, 191, 36, 0.26);
     }
+
+    .day-mid:after { background: var(--yellow); }
 
     .day-low {
-        background: linear-gradient(145deg, rgba(239, 68, 68, 0.15), rgba(17, 29, 48, 0.92));
-        border-color: rgba(239, 68, 68, 0.30);
+        background: linear-gradient(145deg, rgba(251, 113, 133, 0.13), rgba(15, 28, 47, 0.88));
+        border-color: rgba(251, 113, 133, 0.24);
     }
 
+    .day-low:after { background: var(--red); }
+
     .day-empty {
-        background: rgba(15, 23, 42, 0.52);
-        opacity: 0.82;
+        background: rgba(15, 23, 42, 0.46);
+        opacity: 0.78;
+    }
+
+    .day-today {
+        outline: 2px solid rgba(56, 189, 248, 0.55);
+        outline-offset: 2px;
     }
 
     .day-name {
         color: var(--muted);
-        font-size: 0.75rem;
-        font-weight: 800;
-        letter-spacing: 0.1em;
+        font-size: 0.70rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
     .day-score {
-        font-size: 1.65rem;
-        font-weight: 900;
-        margin: 0.25rem 0 0.2rem 0;
+        font-size: 1.5rem;
+        font-weight: 950;
+        margin: 0.28rem 0 0.34rem 0;
+        letter-spacing: -0.035em;
     }
 
     .day-detail {
         color: #cbd5e1;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
+        line-height: 1.35;
     }
 
-    div[data-testid="stMetric"] {
-        background: rgba(17, 29, 48, 0.72);
-        border-color: var(--line) !important;
-        border-radius: 18px;
-        padding: 0.25rem 0.35rem;
-    }
-
-    div[data-testid="stMetricValue"] {
-        font-weight: 900;
-        letter-spacing: -0.03em;
-    }
-
-    div.stButton > button[kind="primary"] {
-        border-radius: 14px;
-        font-weight: 800;
-        min-height: 3rem;
-    }
-
-    div[data-testid="stCheckbox"] {
-        padding: 0.15rem 0;
-    }
-
-    .habit-row {
-        padding: 0.2rem 0 0.55rem 0;
-    }
-
-    .mini-note {
+    .day-subdetail {
         color: var(--muted);
-        font-size: 0.82rem;
+        font-size: 0.68rem;
+        margin-top: 0.18rem;
+    }
+
+    /* Radio */
+    div[data-testid="stRadio"] > div {
+        gap: 0.45rem;
+    }
+
+    div[data-testid="stRadio"] label {
+        background: rgba(15, 28, 47, 0.65);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.30rem 0.55rem;
+    }
+
+    /* Alerts */
+    div[data-testid="stAlert"] {
+        border-radius: 16px;
+    }
+
+    @media (max-width: 950px) {
+        .week-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 700px) {
         .block-container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-            padding-top: 1rem;
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
+            padding-top: 0.9rem;
         }
 
-        .hero-status,
-        .hero-meta {
-            text-align: left;
+        .hero-card {
+            padding: 1.15rem;
+            border-radius: 22px;
+        }
+
+        .score-ring {
+            width: 112px;
+            height: 112px;
+            flex-basis: 112px;
+        }
+
+        .score-value {
+            font-size: 1.85rem;
         }
 
         .week-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        div[data-testid="stMetric"] {
+            min-height: 92px;
         }
     }
     </style>
@@ -444,10 +674,10 @@ def short_training_name(training_day):
 st.markdown(
     """
     <div class="mission-header">
-        <div class="mission-kicker">Daily Performance System</div>
-        <div class="mission-title">🎯 MISSION 365</div>
+        <div class="mission-kicker">● STANI · PERSONAL PERFORMANCE SYSTEM</div>
+        <div class="mission-title">⚡ STANI PERFORMANCE</div>
         <div class="mission-subtitle">
-            Training • Ernährung • Gesundheit • Lernen • Trading
+            Konstanz • Fokus • Fortschritt · Training • Ernährung • Gesundheit • Lernen • Trading
         </div>
     </div>
     """,
@@ -507,33 +737,64 @@ with tab_daily:
     def default_value(field):
         return bool(saved.get(field, False)) if saved else False
 
-    daily_fields = [
-        ("calorie_deficit", "🔥 Kaloriendefizit eingehalten"),
-        ("fixed_meals", "🍽️ Feste Mahlzeiten eingehalten"),
+    daily_values = {}
+
+    nutrition_fields = [
+        ("calorie_deficit", "🔥 Kaloriendefizit"),
+        ("fixed_meals", "🍽️ Feste Mahlzeiten"),
         ("no_snacks", "🚫 Keine unnötigen Snacks"),
         ("no_calorie_drinks", "🥤 Keine Kalorien getrunken"),
         ("no_alcohol", "🍺 Kein Alkohol"),
-        ("movement_30", "🚶 30 Minuten Spaziergang / Bewegung"),
-        ("protein_goal", "🥩 Proteinziel erreicht"),
-        ("sleep_goal", "😴 Schlafziel erreicht"),
-        ("reading_30", "📚 30 Minuten gelesen"),
-        ("trading_30", "📈 30 Minuten Trading / Trading lernen"),
+        ("protein_goal", "🥩 Proteinziel"),
     ]
 
-    daily_values = {}
+    health_fields = [
+        ("movement_30", "🚶 30 Minuten Bewegung"),
+        ("sleep_goal", "😴 Schlafziel"),
+    ]
 
-    check_col1, check_col2 = st.columns(2, gap="large")
+    growth_fields = [
+        ("reading_30", "📚 30 Minuten gelesen"),
+        ("trading_30", "📈 30 Minuten Trading"),
+    ]
 
-    for index, (field, label) in enumerate(daily_fields):
-        target_col = check_col1 if index % 2 == 0 else check_col2
-        with target_col:
-            daily_values[field] = st.checkbox(
-                label,
-                value=default_value(field),
-                key=f"{datum}_{field}",
-            )
+    daily_col1, daily_col2, daily_col3 = st.columns([1.35, 1, 1], gap="medium")
+
+    with daily_col1:
+        with st.container(border=True):
+            st.markdown("#### 🥗 Ernährung")
+            st.caption("Die Basis für Fettverlust & Muskelaufbau")
+            for field, label in nutrition_fields:
+                daily_values[field] = st.checkbox(
+                    label,
+                    value=default_value(field),
+                    key=f"{datum}_{field}",
+                )
+
+    with daily_col2:
+        with st.container(border=True):
+            st.markdown("#### ❤️ Gesundheit")
+            st.caption("Bewegung & Regeneration")
+            for field, label in health_fields:
+                daily_values[field] = st.checkbox(
+                    label,
+                    value=default_value(field),
+                    key=f"{datum}_{field}",
+                )
+
+    with daily_col3:
+        with st.container(border=True):
+            st.markdown("#### 🚀 Wachstum")
+            st.caption("Jeden Tag ein Stück weiter")
+            for field, label in growth_fields:
+                daily_values[field] = st.checkbox(
+                    label,
+                    value=default_value(field),
+                    key=f"{datum}_{field}",
+                )
 
     st.markdown('<div class="section-title">💪 Training</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-note">Wähle deinen Trainingstag – ein Ruhetag senkt deinen Performance Score nicht.</div>', unsafe_allow_html=True)
 
     training = st.radio(
         "Was steht heute an?",
@@ -591,7 +852,7 @@ with tab_daily:
 
     score_col1, score_col2, score_col3 = st.columns(3, gap="medium")
     with score_col1:
-        st.metric("Mission Score", f"{mission_score}/100", border=True)
+        st.metric("Performance Score", f"{mission_score}/100", border=True)
     with score_col2:
         st.metric("Erledigt", f"{completed_total}/{total_tasks}", border=True)
     with score_col3:
@@ -637,18 +898,26 @@ with tab_daily:
             st.exception(exc)
 
 # Hero wird nach der Score-Berechnung oben an seinem Platz gerendert.
+remaining_tasks = max(total_tasks - completed_total, 0)
+remaining_text = "Alles geschafft – Tag komplett!" if remaining_tasks == 0 else f"{remaining_tasks} Aufgaben noch offen"
+
 with hero_placeholder.container():
     st.markdown(
         f"""
         <div class="hero-card">
             <div class="hero-row">
-                <div>
-                    <div class="hero-label">Mission Score · {datum.strftime("%d.%m.%Y")}</div>
-                    <div class="hero-score">{mission_score}<span>/100</span></div>
-                </div>
-                <div>
+                <div class="hero-copy">
+                    <div class="hero-label">Performance Score · {datum.strftime("%d.%m.%Y")}</div>
                     <div class="hero-status">{status_for_score(progress)}</div>
-                    <div class="hero-meta">{schicht} · {training}</div>
+                    <div class="hero-meta">{remaining_text}</div>
+                    <div class="hero-chips">
+                        <span class="hero-chip">🏭 {schicht}</span>
+                        <span class="hero-chip">{short_training_name(training)} {training if training != "Ruhetag" else ""}</span>
+                        <span class="hero-chip">✅ {completed_total}/{total_tasks} erledigt</span>
+                    </div>
+                </div>
+                <div class="score-ring" style="--score:{mission_score};">
+                    <div class="score-value">{mission_score}<small>von 100</small></div>
                 </div>
             </div>
         </div>
@@ -727,24 +996,31 @@ with tab_progress:
                 dot = "🔴"
 
             detail = short_training_name(day.get("training_day", "Ruhetag"))
+            subdetail = f"🏭 {day.get('shift', '—')}"
             score_text = f"{score_pct}%"
         else:
             css_class = "day-empty"
             dot = "⚪"
             detail = "Noch kein Eintrag"
+            subdetail = "—"
             score_text = "–"
 
         if current_date > today:
             css_class = "day-empty"
             dot = "⚪"
             detail = "Noch offen"
+            subdetail = "—"
             score_text = "–"
+
+        if current_date == today:
+            css_class += " day-today"
 
         week_cards.append(
             f'<div class="day-card {css_class}">'
             f'<div class="day-name">{weekdays[index]} · {current_date.strftime("%d.%m.")}</div>'
             f'<div class="day-score">{dot} {score_text}</div>'
             f'<div class="day-detail">{detail}</div>'
+            f'<div class="day-subdetail">{subdetail}</div>'
             f'</div>'
         )
 
@@ -755,7 +1031,7 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    st.caption("🟢 ab 80 % · 🟡 50–79 % · 🔴 unter 50 % · ⚪ noch kein Eintrag")
+    st.caption("🟢 ab 80 % · 🟡 50–79 % · 🔴 unter 50 % · ⚪ kein Eintrag · blauer Rand = heute")
 
     # --------------------------------------------------
     # KONSTANZ
@@ -837,4 +1113,4 @@ with tab_progress:
     else:
         st.info("🌱 Jeder gespeicherte Tag zählt. Ziel ist zunächst Konstanz, nicht Perfektion.")
 
-st.caption("MISSION 365 · Konsequenz heute. Fortschritt morgen.")
+st.caption("STANI PERFORMANCE · Konstanz heute. Fortschritt morgen.")
