@@ -741,17 +741,17 @@ with tab_progress:
             score_text = "–"
 
         week_cards.append(
-            f"""
-            <div class="day-card {css_class}">
-                <div class="day-name">{weekdays[index]} · {current_date.strftime("%d.%m.")}</div>
-                <div class="day-score">{dot} {score_text}</div>
-                <div class="day-detail">{detail}</div>
-            </div>
-            """
+            f'<div class="day-card {css_class}">'
+            f'<div class="day-name">{weekdays[index]} · {current_date.strftime("%d.%m.")}</div>'
+            f'<div class="day-score">{dot} {score_text}</div>'
+            f'<div class="day-detail">{detail}</div>'
+            f'</div>'
         )
 
+    week_html = '<div class="week-grid">' + "".join(week_cards) + '</div>'
+
     st.markdown(
-        '<div class="week-grid">' + "".join(week_cards) + "</div>",
+        week_html,
         unsafe_allow_html=True,
     )
 
