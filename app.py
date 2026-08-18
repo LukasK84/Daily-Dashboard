@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from supabase import create_client, Client
 
 # --------------------------------------------------
@@ -7,8 +7,8 @@ from supabase import create_client, Client
 # --------------------------------------------------
 
 st.set_page_config(
-    page_title="Joe's Daily Dashboard",
-    page_icon="💪",
+    page_title="Mission 365",
+    page_icon="🎯",
     layout="wide"
 )
 
@@ -23,7 +23,6 @@ def init_supabase():
     return create_client(url, key)
 
 supabase: Client = init_supabase()
-
 
 # --------------------------------------------------
 # DESIGN
@@ -76,24 +75,20 @@ h1, h2, h3 {
     font-size: 0.85rem;
 }
 
-/* Labels besser lesbar */
 label, p, span {
     color: #e5e7eb;
 }
 
-/* Radio- und Selectbox-Beschriftung */
 div[data-testid="stWidgetLabel"] p {
     color: #d1d5db !important;
 }
 
-/* Progressbar */
 div[data-testid="stProgress"] > div > div > div > div {
     background-color: #34d399;
 }
 
 </style>
 """, unsafe_allow_html=True)
-
 
 # --------------------------------------------------
 # TRAININGSPLAN
@@ -132,9 +127,8 @@ trainingsplan = {
     ]
 }
 
-
 # --------------------------------------------------
-# DATENBANK-FUNKTIONEN
+# DATENBANK
 # --------------------------------------------------
 
 def load_day(selected_date):
@@ -155,28 +149,41 @@ def load_day(selected_date):
 
 def save_day(data):
 
-    supabase \
-        .table("daily_tracker") \
-        .upsert(data) \
+    (
+        supabase
+        .table("daily_tracker")
+        .upsert(data)
         .execute()
+    )
 
+
+def load_all_days():
+
+    response = (
+        supabase
+        .table("daily_tracker")
+        .select("*")
+        .order("date")
+        .execute()
+    )
+
+    return response.data or []
 
 # --------------------------------------------------
 # KOPF
 # --------------------------------------------------
 
 st.markdown(
-    '<div class="dashboard-title">💪 JOE\'S DAILY DASHBOARD</div>',
+    '<div class="dashboard-title">🎯 MISSION 365</div>',
     unsafe_allow_html=True
 )
 
 st.markdown(
     '<div class="dashboard-subtitle">'
-    'Fitness • Ernährung • Lernen • Trading'
+    'Training • Ernährung • Gesundheit • Lernen • Trading'
     '</div>',
     unsafe_allow_html=True
 )
-
 
 # --------------------------------------------------
 # DATUM
@@ -189,21 +196,16 @@ datum = st.date_input(
 
 saved = load_day(datum)
 
-
 # --------------------------------------------------
 # STANDARDWERTE
 # --------------------------------------------------
 
 if saved:
-
     default_shift = saved["shift"]
     default_training = saved["training_day"]
-
 else:
-
     default_shift = "Frühschicht"
     default_training = "Ruhetag"
-
 
 shift_options = [
     "Frühschicht",
@@ -218,7 +220,6 @@ training_options = [
     "Training B",
     "Training C"
 ]
-
 
 # --------------------------------------------------
 # SCHICHT
@@ -241,9 +242,7 @@ with col2:
     else:
         st.info("🆕 Neuer Tag")
 
-
 st.divider()
-
 
 # --------------------------------------------------
 # DAILY CHECK
@@ -263,6 +262,7 @@ daily_fields = [
     ("fixed_meals", "Feste Mahlzeiten eingehalten"),
     ("no_snacks", "Keine unnötigen Snacks"),
     ("no_calorie_drinks", "Keine Kalorien getrunken"),
+    ("no_alcohol", "Kein Alkohol"),
     ("movement_30", "30 Minuten Spaziergang / Bewegung"),
     ("protein_goal", "Proteinziel erreicht"),
     ("sleep_goal", "Schlafziel erreicht"),
@@ -286,13 +286,11 @@ for index, (field, label) in enumerate(daily_fields):
             key=f"{datum}_{field}"
         )
 
-
 # --------------------------------------------------
 # TRAINING
 # --------------------------------------------------
 
 st.divider()
-
 st.subheader("💪 Mein Training")
 
 training = st.radio(
@@ -302,7 +300,6 @@ training = st.radio(
     horizontal=True,
     key=f"{datum}_training"
 )
-
 
 training_values = []
 
@@ -340,16 +337,13 @@ if training != "Ruhetag":
 else:
 
     st.info("😌 Heute ist Regeneration angesagt.")
-
     training_values = [False] * 7
 
-
 # --------------------------------------------------
-# FORTSCHRITT
+# TAGESFORTSCHRITT
 # --------------------------------------------------
 
 st.divider()
-
 st.subheader("📊 Tagesfortschritt")
 
 completed_daily = sum(daily_values.values())
@@ -365,12 +359,10 @@ else:
     completed_training = 0
     total_training = 0
 
-
 completed_total = completed_daily + completed_training
 total_tasks = total_daily + total_training
 
 progress = completed_total / total_tasks if total_tasks else 0
-
 
 col1, col2, col3 = st.columns(3)
 
@@ -419,9 +411,7 @@ with col3:
         unsafe_allow_html=True
     )
 
-
 st.progress(progress)
-
 
 # --------------------------------------------------
 # SPEICHERN
@@ -446,6 +436,7 @@ if st.button(
         "fixed_meals": daily_values["fixed_meals"],
         "no_snacks": daily_values["no_snacks"],
         "no_calorie_drinks": daily_values["no_calorie_drinks"],
+        "no_alcohol": daily_values["no_alcohol"],
         "movement_30": daily_values["movement_30"],
         "protein_goal": daily_values["protein_goal"],
         "sleep_goal": daily_values["sleep_goal"],
@@ -481,44 +472,21 @@ if st.button(
 
         st.exception(e)
 
-
-# --------------------------------------------------
-# MOTIVATION
-# --------------------------------------------------
 # --------------------------------------------------
 # STATISTIK
 # --------------------------------------------------
 
-from datetime import timedelta
-
 st.divider()
 st.subheader("📊 Mein Fortschritt")
 
-
-# Alle gespeicherten Tage laden
-def load_all_days():
-    response = (
-        supabase
-        .table("daily_tracker")
-        .select("*")
-        .order("date")
-        .execute()
-    )
-    return response.data or []
-
-
 all_days = load_all_days()
-
-
-# --------------------------------------------------
-# TAGES-SCORE BERECHNEN
-# --------------------------------------------------
 
 habit_fields = [
     "calorie_deficit",
     "fixed_meals",
     "no_snacks",
     "no_calorie_drinks",
+    "no_alcohol",
     "movement_30",
     "protein_goal",
     "sleep_goal",
@@ -536,9 +504,10 @@ def calculate_score(day):
 
     total = len(habit_fields)
 
-    # Training nur berücksichtigen,
-    # wenn tatsächlich Training ausgewählt wurde
-    training_day = day.get("training_day", "Ruhetag")
+    training_day = day.get(
+        "training_day",
+        "Ruhetag"
+    )
 
     if training_day != "Ruhetag":
 
@@ -562,13 +531,11 @@ def calculate_score(day):
     return completed / total if total else 0
 
 
-# --------------------------------------------------
-# ZEITRÄUME
-# --------------------------------------------------
-
 today = date.today()
 
-start_week = today - timedelta(days=today.weekday())
+start_week = today - timedelta(
+    days=today.weekday()
+)
 
 start_month = today.replace(day=1)
 
@@ -581,7 +548,8 @@ start_year = today.replace(
 def days_since(start_date):
 
     return [
-        day for day in all_days
+        day
+        for day in all_days
         if date.fromisoformat(day["date"]) >= start_date
         and date.fromisoformat(day["date"]) <= today
     ]
@@ -609,37 +577,37 @@ week_score = average_score(week_days)
 month_score = average_score(month_days)
 year_score = average_score(year_days)
 
-
-# --------------------------------------------------
-# HAUPT-KENNZAHLEN
-# --------------------------------------------------
-
 c1, c2, c3 = st.columns(3)
 
 with c1:
+
     st.metric(
         "📅 Diese Woche",
         f"{week_score:.0%}"
     )
 
 with c2:
+
     st.metric(
         "🗓️ Dieser Monat",
         f"{month_score:.0%}"
     )
 
 with c3:
+
     st.metric(
         "🏆 Dieses Jahr",
         f"{year_score:.0%}"
     )
 
-
 # --------------------------------------------------
 # STREAK
 # --------------------------------------------------
 
-def calculate_streak(days, minimum_score=0.80):
+def calculate_streak(
+    days,
+    minimum_score=0.80
+):
 
     if not days:
         return 0, 0
@@ -656,17 +624,21 @@ def calculate_streak(days, minimum_score=0.80):
 
     for day in sorted_days:
 
-        d = date.fromisoformat(day["date"])
+        d = date.fromisoformat(
+            day["date"]
+        )
+
         score = calculate_score(day)
 
-        streak_by_date[d] = score >= minimum_score
-
-
-    # längste Streak
+        streak_by_date[d] = (
+            score >= minimum_score
+        )
 
     previous_date = None
 
-    for d in sorted(streak_by_date):
+    for d in sorted(
+        streak_by_date
+    ):
 
         successful = streak_by_date[d]
 
@@ -695,11 +667,7 @@ def calculate_streak(days, minimum_score=0.80):
 
         previous_date = d
 
-
-    # aktuelle Streak
-
     current = 0
-
     check_date = today
 
     while streak_by_date.get(
@@ -710,14 +678,12 @@ def calculate_streak(days, minimum_score=0.80):
         current += 1
         check_date -= timedelta(days=1)
 
-
     return current, longest
 
 
 current_streak, longest_streak = calculate_streak(
     all_days
 )
-
 
 st.markdown("### 🔥 Konstanz")
 
@@ -737,7 +703,6 @@ with c2:
         f"{longest_streak} Tage"
     )
 
-
 # --------------------------------------------------
 # TRAININGSSTATISTIK
 # --------------------------------------------------
@@ -754,10 +719,17 @@ def count_training(days):
     )
 
 
-training_week = count_training(week_days)
-training_month = count_training(month_days)
-training_year = count_training(year_days)
+training_week = count_training(
+    week_days
+)
 
+training_month = count_training(
+    month_days
+)
+
+training_year = count_training(
+    year_days
+)
 
 st.markdown("### 💪 Training")
 
@@ -784,13 +756,11 @@ with c3:
         training_year
     )
 
-
 # --------------------------------------------------
 # GEWOHNHEITEN
 # --------------------------------------------------
 
 st.markdown("### 🎯 Meine Gewohnheiten")
-
 
 habit_labels = {
 
@@ -805,6 +775,9 @@ habit_labels = {
 
     "no_calorie_drinks":
         "🥤 Keine Kalorien getrunken",
+
+    "no_alcohol":
+        "🍺 Kein Alkohol",
 
     "movement_30":
         "🚶 30 Min. Bewegung",
@@ -856,7 +829,6 @@ for field, label in habit_labels.items():
             f"**{completed}/{total}**"
         )
 
-
 # --------------------------------------------------
 # MONATSFAZIT
 # --------------------------------------------------
@@ -892,6 +864,11 @@ else:
     st.info(
         "🌱 Jeder gespeicherte Tag zählt. Ziel ist zunächst Konstanz, nicht Perfektion."
     )
+
+# --------------------------------------------------
+# MOTIVATION
+# --------------------------------------------------
+
 st.divider()
 
 if progress == 1:
@@ -917,7 +894,6 @@ else:
     st.info(
         "🎯 Nicht Perfektion entscheidet, sondern Konstanz."
     )
-
 
 st.caption(
     "Konsequenz heute. Fortschritt morgen."
