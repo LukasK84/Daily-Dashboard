@@ -1,5 +1,6 @@
 import streamlit as st
-from datetime import date
+from datetime import date, datetime
+from supabase import create_client, Client
 
 # --------------------------------------------------
 # GRUNDEINSTELLUNGEN
@@ -10,6 +11,19 @@ st.set_page_config(
     page_icon="💪",
     layout="wide"
 )
+
+# --------------------------------------------------
+# SUPABASE
+# --------------------------------------------------
+
+@st.cache_resource
+def init_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase: Client = init_supabase()
+
 
 # --------------------------------------------------
 # DESIGN
@@ -30,7 +44,7 @@ st.markdown("""
 }
 
 h1, h2, h3 {
-    color: white;
+    color: white !important;
 }
 
 .dashboard-title {
@@ -53,15 +67,26 @@ h1, h2, h3 {
 }
 
 .big-number {
-    font-size: 2.1rem;
+    font-size: 2rem;
     font-weight: 800;
 }
 
 .small-text {
     color: #9ca3af;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
+/* Labels besser lesbar */
+label, p, span {
+    color: #e5e7eb;
+}
+
+/* Radio- und Selectbox-Beschriftung */
+div[data-testid="stWidgetLabel"] p {
+    color: #d1d5db !important;
+}
+
+/* Progressbar */
 div[data-testid="stProgress"] > div > div > div > div {
     background-color: #34d399;
 }
@@ -109,6 +134,34 @@ trainingsplan = {
 
 
 # --------------------------------------------------
+# DATENBANK-FUNKTIONEN
+# --------------------------------------------------
+
+def load_day(selected_date):
+
+    response = (
+        supabase
+        .table("daily_tracker")
+        .select("*")
+        .eq("date", str(selected_date))
+        .execute()
+    )
+
+    if response.data:
+        return response.data[0]
+
+    return None
+
+
+def save_day(data):
+
+    supabase \
+        .table("daily_tracker") \
+        .upsert(data) \
+        .execute()
+
+
+# --------------------------------------------------
 # KOPF
 # --------------------------------------------------
 
@@ -126,27 +179,67 @@ st.markdown(
 
 
 # --------------------------------------------------
-# TAG & SCHICHT
+# DATUM
 # --------------------------------------------------
 
-col1, col2 = st.columns(2)
+datum = st.date_input(
+    "📅 Datum",
+    value=date.today()
+)
+
+saved = load_day(datum)
+
+
+# --------------------------------------------------
+# STANDARDWERTE
+# --------------------------------------------------
+
+if saved:
+
+    default_shift = saved["shift"]
+    default_training = saved["training_day"]
+
+else:
+
+    default_shift = "Frühschicht"
+    default_training = "Ruhetag"
+
+
+shift_options = [
+    "Frühschicht",
+    "Spätschicht",
+    "Nachtschicht",
+    "Frei"
+]
+
+training_options = [
+    "Ruhetag",
+    "Training A",
+    "Training B",
+    "Training C"
+]
+
+
+# --------------------------------------------------
+# SCHICHT
+# --------------------------------------------------
+
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    datum = st.date_input(
-        "📅 Datum",
-        value=date.today()
+
+    schicht = st.selectbox(
+        "🏭 Meine Schicht",
+        shift_options,
+        index=shift_options.index(default_shift)
     )
 
 with col2:
-    schicht = st.selectbox(
-        "🏭 Meine Schicht",
-        [
-            "Frühschicht",
-            "Spätschicht",
-            "Nachtschicht",
-            "Frei"
-        ]
-    )
+
+    if saved:
+        st.success("💾 Dieser Tag ist gespeichert")
+    else:
+        st.info("🆕 Neuer Tag")
 
 
 st.divider()
@@ -158,33 +251,40 @@ st.divider()
 
 st.subheader("🏆 Mein Tages-Check")
 
-daily_tasks = [
-    "Kaloriendefizit eingehalten",
-    "Feste Mahlzeiten eingehalten",
-    "Keine unnötigen Snacks",
-    "Keine Kalorien getrunken",
-    "30 Minuten Spaziergang / Bewegung",
-    "Proteinziel erreicht",
-    "Schlafziel erreicht",
-    "30 Minuten gelesen",
-    "30 Minuten Trading / Trading lernen",
+
+def default_value(field):
+    if saved:
+        return bool(saved.get(field, False))
+    return False
+
+
+daily_fields = [
+    ("calorie_deficit", "Kaloriendefizit eingehalten"),
+    ("fixed_meals", "Feste Mahlzeiten eingehalten"),
+    ("no_snacks", "Keine unnötigen Snacks"),
+    ("no_calorie_drinks", "Keine Kalorien getrunken"),
+    ("movement_30", "30 Minuten Spaziergang / Bewegung"),
+    ("protein_goal", "Proteinziel erreicht"),
+    ("sleep_goal", "Schlafziel erreicht"),
+    ("reading_30", "30 Minuten gelesen"),
+    ("trading_30", "30 Minuten Trading / Trading lernen"),
 ]
 
-daily_results = []
+daily_values = {}
 
 col1, col2 = st.columns(2)
 
-for index, task in enumerate(daily_tasks):
+for index, (field, label) in enumerate(daily_fields):
 
     column = col1 if index % 2 == 0 else col2
 
     with column:
-        checked = st.checkbox(
-            task,
-            key=f"daily_{datum}_{index}"
-        )
 
-        daily_results.append(checked)
+        daily_values[field] = st.checkbox(
+            label,
+            value=default_value(field),
+            key=f"{datum}_{field}"
+        )
 
 
 # --------------------------------------------------
@@ -197,17 +297,14 @@ st.subheader("💪 Mein Training")
 
 training = st.radio(
     "Was steht heute an?",
-    [
-        "Ruhetag",
-        "Training A",
-        "Training B",
-        "Training C"
-    ],
-    horizontal=True
+    training_options,
+    index=training_options.index(default_training),
+    horizontal=True,
+    key=f"{datum}_training"
 )
 
 
-training_results = []
+training_values = []
 
 if training != "Ruhetag":
 
@@ -219,37 +316,49 @@ if training != "Ruhetag":
 
         col1, col2 = st.columns([4, 1])
 
+        field = f"exercise_{index + 1}"
+
+        old_value = False
+
+        if saved and saved["training_day"] == training:
+            old_value = bool(saved.get(field, False))
+
         with col1:
+
             done = st.checkbox(
                 exercise,
-                key=f"{datum}_{training}_{index}"
+                value=old_value,
+                key=f"{datum}_{training}_{field}"
             )
 
         with col2:
+
             st.markdown(f"**{reps}**")
 
-        training_results.append(done)
+        training_values.append(done)
 
 else:
 
     st.info("😌 Heute ist Regeneration angesagt.")
 
+    training_values = [False] * 7
+
 
 # --------------------------------------------------
-# TAGESFORTSCHRITT
+# FORTSCHRITT
 # --------------------------------------------------
 
 st.divider()
 
 st.subheader("📊 Tagesfortschritt")
 
-completed_daily = sum(daily_results)
-total_daily = len(daily_results)
+completed_daily = sum(daily_values.values())
+total_daily = len(daily_values)
 
 if training != "Ruhetag":
 
-    completed_training = sum(training_results)
-    total_training = len(training_results)
+    completed_training = sum(training_values)
+    total_training = 7
 
 else:
 
@@ -260,15 +369,13 @@ else:
 completed_total = completed_daily + completed_training
 total_tasks = total_daily + total_training
 
-if total_tasks > 0:
-    progress = completed_total / total_tasks
-else:
-    progress = 0
+progress = completed_total / total_tasks if total_tasks else 0
 
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
+
     st.markdown(
         f"""
         <div class="card">
@@ -280,6 +387,7 @@ with col1:
     )
 
 with col2:
+
     st.markdown(
         f"""
         <div class="card">
@@ -293,13 +401,13 @@ with col2:
 with col3:
 
     if progress == 1:
-        status = "🏆 Perfekter Tag!"
+        status = "🏆 Perfekt!"
     elif progress >= 0.8:
         status = "🔥 Stark!"
     elif progress >= 0.5:
-        status = "💪 Weiter so!"
+        status = "💪 Weiter!"
     else:
-        status = "🎯 Dranbleiben!"
+        status = "🎯 Dranbleiben"
 
     st.markdown(
         f"""
@@ -313,6 +421,65 @@ with col3:
 
 
 st.progress(progress)
+
+
+# --------------------------------------------------
+# SPEICHERN
+# --------------------------------------------------
+
+st.divider()
+
+if st.button(
+    "💾 TAG SPEICHERN",
+    type="primary",
+    use_container_width=True
+):
+
+    data = {
+
+        "date": str(datum),
+
+        "shift": schicht,
+        "training_day": training,
+
+        "calorie_deficit": daily_values["calorie_deficit"],
+        "fixed_meals": daily_values["fixed_meals"],
+        "no_snacks": daily_values["no_snacks"],
+        "no_calorie_drinks": daily_values["no_calorie_drinks"],
+        "movement_30": daily_values["movement_30"],
+        "protein_goal": daily_values["protein_goal"],
+        "sleep_goal": daily_values["sleep_goal"],
+        "reading_30": daily_values["reading_30"],
+        "trading_30": daily_values["trading_30"],
+
+        "exercise_1": training_values[0],
+        "exercise_2": training_values[1],
+        "exercise_3": training_values[2],
+        "exercise_4": training_values[3],
+        "exercise_5": training_values[4],
+        "exercise_6": training_values[5],
+        "exercise_7": training_values[6],
+
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    try:
+
+        save_day(data)
+
+        st.success(
+            "✅ Tag dauerhaft gespeichert!"
+        )
+
+        st.rerun()
+
+    except Exception as e:
+
+        st.error(
+            "Speichern fehlgeschlagen."
+        )
+
+        st.exception(e)
 
 
 # --------------------------------------------------
@@ -342,7 +509,7 @@ elif progress >= 0.5:
 else:
 
     st.info(
-        "🎯 Nicht Perfektion entscheidet, sondern dass du heute etwas machst."
+        "🎯 Nicht Perfektion entscheidet, sondern Konstanz."
     )
 
 
